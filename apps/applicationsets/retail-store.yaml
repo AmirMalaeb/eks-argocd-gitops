@@ -1,6 +1,7 @@
-# Retail Store ApplicationSet — deploys the AWS Retail Store Sample App
-# using the upstream OCI Helm chart from public ECR.
-# Managed Argo CD doesn't support CMP, so we use native Helm source.
+# Retail Store ApplicationSet — deploys each service of the AWS Retail Store
+# Sample App using individual OCI Helm charts from public ECR.
+# Managed Argo CD has direct ECR integration — the Capability Role needs
+# AmazonEC2ContainerRegistryPullOnly and AmazonElasticContainerRegistryPublicReadOnly policies.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -8,31 +9,39 @@ metadata:
   namespace: argocd
 spec:
   generators:
-    - list:
-        elements:
-          - environment: dev
-            cluster: spoke-dev
-            replicas: "1"
-          - environment: staging
-            cluster: spoke-staging
-            replicas: "2"
-          - environment: production
-            cluster: spoke-prod
-            replicas: "3"
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - service: ui
+                  chart: retail-store-sample-ui-chart
+                - service: catalog
+                  chart: retail-store-sample-catalog-chart
+                - service: cart
+                  chart: retail-store-sample-cart-chart
+                - service: checkout
+                  chart: retail-store-sample-checkout-chart
+                - service: orders
+                  chart: retail-store-sample-orders-chart
+          - list:
+              elements:
+                - environment: dev
+                  cluster: spoke-dev
+                - environment: staging
+                  cluster: spoke-staging
+                - environment: production
+                  cluster: spoke-prod
   template:
     metadata:
-      name: 'retail-store-{{environment}}'
+      name: 'retail-store-{{service}}-{{environment}}'
     spec:
       project: default
       source:
         repoURL: public.ecr.aws/aws-containers
-        chart: retail-store-sample-app
-        targetRevision: 1.0.0
+        chart: '{{chart}}'
+        targetRevision: 1.3.0
         helm:
-          releaseName: retail-store
-          parameters:
-            - name: ui.replicas
-              value: '{{replicas}}'
+          releaseName: '{{service}}'
       destination:
         name: '{{cluster}}'
         namespace: 'retail-store-{{environment}}'
