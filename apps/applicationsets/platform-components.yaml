@@ -13,25 +13,6 @@ spec:
         generators:
           - list:
               elements:
-                - component: kyverno
-                  repoUrl: https://kyverno.github.io/kyverno/
-                  chart: kyverno
-                  chartVersion: "3.4.0"
-                  namespace: kyverno
-                  helmValues: |
-                    cleanupJobs:
-                      admissionReports:
-                        enabled: false
-                        image:
-                          registry: ghcr.io
-                          repository: kyverno/kubectl
-                          tag: latest
-                      clusterAdmissionReports:
-                        enabled: false
-                        image:
-                          registry: ghcr.io
-                          repository: kyverno/kubectl
-                          tag: latest
                 - component: external-secrets
                   repoUrl: https://charts.external-secrets.io
                   chart: external-secrets

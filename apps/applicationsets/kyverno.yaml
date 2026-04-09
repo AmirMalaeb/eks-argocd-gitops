@@ -1,0 +1,49 @@
+# Kyverno ApplicationSet — separate from platform-components to allow
+# precise Helm value control (disable cleanup CronJobs that pull from Docker Hub).
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kyverno
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - cluster: spoke-dev
+            environment: dev
+          - cluster: spoke-staging
+            environment: staging
+          - cluster: spoke-prod
+            environment: production
+  template:
+    metadata:
+      name: 'kyverno-{{environment}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://kyverno.github.io/kyverno/
+        chart: kyverno
+        targetRevision: "3.4.0"
+        helm:
+          releaseName: kyverno
+          parameters:
+            - name: cleanupJobs.admissionReports.enabled
+              value: "false"
+            - name: cleanupJobs.clusterAdmissionReports.enabled
+              value: "false"
+      destination:
+        name: '{{cluster}}'
+        namespace: kyverno
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
