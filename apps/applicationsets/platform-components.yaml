@@ -31,7 +31,7 @@ spec:
                 - component: prometheus
                   repoUrl: https://prometheus-community.github.io/helm-charts
                   chart: kube-prometheus-stack
-                  chartVersion: "72.6.0"
+                  chartVersion: "77.10.0"
                   namespace: monitoring
                 - component: grafana
                   repoUrl: https://grafana.github.io/helm-charts

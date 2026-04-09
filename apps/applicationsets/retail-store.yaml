@@ -1,6 +1,6 @@
-# Retail Store ApplicationSet — generates one Argo CD Application per environment.
-# Uses list generator for explicit 1:1 environment-to-cluster mapping.
-# Source type: native Kustomize (CMP is not supported in managed Argo CD).
+# Retail Store ApplicationSet — deploys the AWS Retail Store Sample App
+# using the upstream OCI Helm chart from public ECR.
+# Managed Argo CD doesn't support CMP, so we use native Helm source.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -12,19 +12,27 @@ spec:
         elements:
           - environment: dev
             cluster: spoke-dev
+            replicas: "1"
           - environment: staging
             cluster: spoke-staging
+            replicas: "2"
           - environment: production
             cluster: spoke-prod
+            replicas: "3"
   template:
     metadata:
       name: 'retail-store-{{environment}}'
     spec:
       project: default
       source:
-        repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
-        targetRevision: HEAD
-        path: 'overlays/{{environment}}'
+        repoURL: public.ecr.aws/aws-containers
+        chart: retail-store-sample-app
+        targetRevision: 1.0.0
+        helm:
+          releaseName: retail-store
+          parameters:
+            - name: ui.replicas
+              value: '{{replicas}}'
       destination:
         name: '{{cluster}}'
         namespace: 'retail-store-{{environment}}'
