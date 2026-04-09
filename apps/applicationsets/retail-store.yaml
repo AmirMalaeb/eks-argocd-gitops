@@ -1,5 +1,6 @@
-# Retail Store ApplicationSet — generates one Argo CD Application per
-# cluster-environment combination using a matrix of Git + Cluster generators.
+# Retail Store ApplicationSet — generates one Argo CD Application per environment.
+# Uses list generator for explicit 1:1 environment-to-cluster mapping.
+# Source type: native Kustomize (CMP is not supported in managed Argo CD).
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -7,31 +8,26 @@ metadata:
   namespace: argocd
 spec:
   generators:
-    - matrix:
-        generators:
-          - git:
-              repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
-              revision: HEAD
-              directories:
-                - path: overlays/*
-          - clusters:
-              selector:
-                matchLabels:
-                  argocd.argoproj.io/secret-type: cluster
+    - list:
+        elements:
+          - environment: dev
+            cluster: spoke-dev
+          - environment: staging
+            cluster: spoke-staging
+          - environment: production
+            cluster: spoke-prod
   template:
     metadata:
-      name: 'retail-store-{{path.basename}}-{{name}}'
+      name: 'retail-store-{{environment}}'
     spec:
-      project: retail-store
+      project: default
       source:
         repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
         targetRevision: HEAD
-        path: '{{path}}'
-        plugin:
-          name: helm-kustomize
+        path: 'overlays/{{environment}}'
       destination:
-        server: '{{server}}'
-        namespace: 'retail-store-{{path.basename}}'
+        name: '{{cluster}}'
+        namespace: 'retail-store-{{environment}}'
       syncPolicy:
         automated:
           prune: true

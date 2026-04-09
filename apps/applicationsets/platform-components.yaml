@@ -1,7 +1,7 @@
 # Platform Components ApplicationSet — deploys Kyverno, External Secrets Operator,
-# Argo Rollouts, Prometheus, and Grafana to every registered spoke cluster.
-# Uses a matrix of Git generator (discovers platform/* directories) and
-# Cluster generator (all registered spoke clusters).
+# Argo Rollouts, Prometheus, and Grafana to every spoke cluster.
+# Uses matrix of list generator (components) × list generator (clusters).
+# Source type: native Kustomize (CMP is not supported in managed Argo CD).
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -11,30 +11,38 @@ spec:
   generators:
     - matrix:
         generators:
-          - git:
-              repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
-              revision: HEAD
-              directories:
-                - path: platform/*
-                # Exclude the argocd directory — it runs on the management cluster only
-                - path: platform/argocd
-                  exclude: true
-          - clusters:
-              selector:
-                matchLabels:
-                  argocd.argoproj.io/secret-type: cluster
+          - list:
+              elements:
+                - component: kyverno
+                  path: platform/kyverno/base
+                - component: external-secrets
+                  path: platform/external-secrets/base
+                - component: argo-rollouts
+                  path: platform/argo-rollouts/base
+                - component: prometheus
+                  path: platform/prometheus/base
+                - component: grafana
+                  path: platform/grafana/base
+          - list:
+              elements:
+                - cluster: spoke-dev
+                  environment: dev
+                - cluster: spoke-staging
+                  environment: staging
+                - cluster: spoke-prod
+                  environment: production
   template:
     metadata:
-      name: '{{path.basename}}-{{name}}'
+      name: '{{component}}-{{environment}}'
     spec:
-      project: platform
+      project: default
       source:
         repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
         targetRevision: HEAD
         path: '{{path}}'
       destination:
-        server: '{{server}}'
-        namespace: '{{path.basename}}'
+        name: '{{cluster}}'
+        namespace: '{{component}}'
       syncPolicy:
         automated:
           prune: true
