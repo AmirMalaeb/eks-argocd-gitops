@@ -1,0 +1,40 @@
+# Argo CD Dashboard — AWS ALB Ingress with HTTPS (ACM certificate)
+# Exposes the Argo CD server UI on the management cluster via an internet-facing ALB.
+# Requirements: 8.1, 8.2, 8.3, 8.4
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    # AWS Load Balancer Controller annotations
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # HTTPS — terminate TLS at the ALB using an ACM certificate
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:<region>:<account-id>:certificate/<certificate-id>
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    # Redirect HTTP to HTTPS
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Argo CD server runs gRPC + HTTPS; use HTTPS backend protocol
+    alb.ingress.kubernetes.io/backend-protocol: HTTPS
+    # Health check against the Argo CD server
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTPS
+    # Security — restrict to corporate CIDR (update for your environment)
+    # alb.ingress.kubernetes.io/inbound-cidrs: 10.0.0.0/8
+    # Tags for cost tracking
+    alb.ingress.kubernetes.io/tags: Environment=management,Component=argocd
+spec:
+  rules:
+    - host: argocd.example.com          # Replace with your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 443

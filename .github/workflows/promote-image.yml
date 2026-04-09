@@ -1,0 +1,164 @@
+name: Promote Image Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: "Service to promote (ui, catalog, cart, orders, checkout)"
+        required: true
+        type: choice
+        options:
+          - ui
+          - catalog
+          - cart
+          - orders
+          - checkout
+      image_tag:
+        description: "Image tag to promote"
+        required: true
+        type: string
+      target_environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+  workflow_call:
+    inputs:
+      service_name:
+        description: "Service to promote"
+        required: true
+        type: string
+      image_tag:
+        description: "Image tag to promote"
+        required: true
+        type: string
+      target_environment:
+        description: "Target environment"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  IMAGE_PREFIX: "public.ecr.aws/aws-containers/retail-store-sample-"
+  IMAGE_TAGS_PATH: "overlays/${{ inputs.target_environment }}/patches/image-tags.yaml"
+
+jobs:
+  validate-and-promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        run: |
+          VALID_SERVICES="ui catalog cart orders checkout"
+          if ! echo "$VALID_SERVICES" | grep -qw "${{ inputs.service_name }}"; then
+            echo "::error::Invalid service name '${{ inputs.service_name }}'. Must be one of: $VALID_SERVICES"
+            exit 1
+          fi
+
+          VALID_ENVS="dev staging production"
+          if ! echo "$VALID_ENVS" | grep -qw "${{ inputs.target_environment }}"; then
+            echo "::error::Invalid target environment '${{ inputs.target_environment }}'. Must be one of: $VALID_ENVS"
+            exit 1
+          fi
+
+      - name: Validate image tag exists in ECR Public
+        run: |
+          IMAGE_NAME="${{ env.IMAGE_PREFIX }}${{ inputs.service_name }}"
+          IMAGE_TAG="${{ inputs.image_tag }}"
+
+          echo "Validating tag '${IMAGE_TAG}' exists for image '${IMAGE_NAME}'..."
+
+          # Query ECR Public for the image tag
+          if ! aws ecr-public describe-images \
+            --repository-name "aws-containers/retail-store-sample-${{ inputs.service_name }}" \
+            --region us-east-1 \
+            --image-ids imageTag="${IMAGE_TAG}" > /dev/null 2>&1; then
+            echo "::error::Image tag '${IMAGE_TAG}' does not exist for '${IMAGE_NAME}' in ECR Public. Aborting without modifying the GitOps repo."
+            exit 1
+          fi
+
+          echo "Image tag '${IMAGE_TAG}' validated successfully."
+
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read old image tag
+        id: old-tag
+        run: |
+          IMAGE_NAME="${{ env.IMAGE_PREFIX }}${{ inputs.service_name }}"
+          OLD_TAG=$(grep -A1 "name: ${IMAGE_NAME}" "${{ env.IMAGE_TAGS_PATH }}" | grep 'newTag:' | sed 's/.*newTag: *"\(.*\)"/\1/')
+          echo "old_tag=${OLD_TAG}" >> "$GITHUB_OUTPUT"
+          echo "Current tag for ${{ inputs.service_name }}: ${OLD_TAG}"
+
+      - name: Update image tag in overlay
+        run: |
+          IMAGE_NAME="${{ env.IMAGE_PREFIX }}${{ inputs.service_name }}"
+          NEW_TAG="${{ inputs.image_tag }}"
+          FILE="${{ env.IMAGE_TAGS_PATH }}"
+
+          # Use sed to update the newTag for the specific service image
+          # Match the image name line, then update the newTag on the next line
+          sed -i "/${IMAGE_NAME}/{n;s/newTag: \".*\"/newTag: \"${NEW_TAG}\"/}" "$FILE"
+
+          echo "Updated ${IMAGE_NAME} tag to ${NEW_TAG} in ${FILE}"
+          echo "--- Updated file contents ---"
+          cat "$FILE"
+
+      - name: Commit and push (dev - direct commit)
+        if: inputs.target_environment == 'dev'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${{ env.IMAGE_TAGS_PATH }}"
+          git commit -m "promote(${{ inputs.target_environment }}): ${{ inputs.service_name }} → ${{ inputs.image_tag }}"
+          git push
+
+      - name: Create PR (staging/production)
+        if: inputs.target_environment != 'dev'
+        run: |
+          BRANCH="promote/${{ inputs.service_name }}-${{ inputs.image_tag }}-${{ inputs.target_environment }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add "${{ env.IMAGE_TAGS_PATH }}"
+          git commit -m "promote(${{ inputs.target_environment }}): ${{ inputs.service_name }} → ${{ inputs.image_tag }}"
+          git push --set-upstream origin "$BRANCH"
+
+          gh pr create \
+            --title "Promote ${{ inputs.service_name }} to ${{ inputs.target_environment }} (tag: ${{ inputs.image_tag }})" \
+            --body "## Image Tag Promotion
+
+          | Field | Value |
+          |-------|-------|
+          | **Service** | ${{ inputs.service_name }} |
+          | **Old Tag** | ${{ steps.old-tag.outputs.old_tag }} |
+          | **New Tag** | ${{ inputs.image_tag }} |
+          | **Environment** | ${{ inputs.target_environment }} |
+
+          Triggered by: @${{ github.actor }}" \
+            --base main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write workflow run summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Image Tag Promotion Summary
+
+          | Field | Value |
+          |-------|-------|
+          | **Service** | \`${{ inputs.service_name }}\` |
+          | **Old Tag** | \`${{ steps.old-tag.outputs.old_tag }}\` |
+          | **New Tag** | \`${{ inputs.image_tag }}\` |
+          | **Target Environment** | \`${{ inputs.target_environment }}\` |
+          | **Method** | ${{ inputs.target_environment == 'dev' && 'Direct commit' || 'Pull request' }} |
+          | **Triggered By** | @${{ github.actor }} |
+          EOF

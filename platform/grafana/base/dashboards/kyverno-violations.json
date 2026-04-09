@@ -1,0 +1,168 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Kyverno policy violations — violations by policy, by namespace, enforce vs audit mode",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Total Violations by Policy",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(kyverno_policy_results_total{rule_result=\"fail\"}) by (policy_name)",
+          "legendFormat": "{{ policy_name }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Total Violations by Namespace",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(kyverno_policy_results_total{rule_result=\"fail\"}) by (resource_namespace)",
+          "legendFormat": "{{ resource_namespace }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Enforce vs Audit Violations",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kyverno_policy_results_total{rule_result=\"fail\",policy_validation_mode=\"enforce\"})",
+          "legendFormat": "Enforce",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(kyverno_policy_results_total{rule_result=\"fail\",policy_validation_mode=\"audit\"})",
+          "legendFormat": "Audit",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Violations Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(kyverno_policy_results_total{rule_result=\"fail\"}[5m])) by (policy_name)",
+          "legendFormat": "{{ policy_name }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Policy Results Summary",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(kyverno_policy_results_total) by (policy_name, rule_result, policy_validation_mode, resource_namespace)",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": {
+              "policy_name": true,
+              "rule_result": true,
+              "policy_validation_mode": true,
+              "resource_namespace": true,
+              "Value": true
+            },
+            "renameByName": {
+              "policy_name": "Policy",
+              "rule_result": "Result",
+              "policy_validation_mode": "Mode",
+              "resource_namespace": "Namespace",
+              "Value": "Count"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["kyverno", "policy", "security"],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(kyverno_policy_results_total, resource_namespace)",
+        "refresh": 2,
+        "current": { "text": "All", "value": "$__all" },
+        "includeAll": true
+      },
+      {
+        "name": "policy",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(kyverno_policy_results_total, policy_name)",
+        "refresh": 2,
+        "current": { "text": "All", "value": "$__all" },
+        "includeAll": true
+      }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Kyverno Violations",
+  "uid": "kyverno-violations"
+}

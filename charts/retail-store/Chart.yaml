@@ -1,0 +1,23 @@
+apiVersion: v2
+name: retail-store
+description: AWS Retail Store Sample Application — umbrella Helm chart
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+# NOTE: The retail store sample app Helm charts are published as OCI artifacts
+# on public ECR, not a traditional Helm repository. Each service has its own chart:
+#
+#   oci://public.ecr.aws/aws-containers/retail-store-sample-ui-chart
+#   oci://public.ecr.aws/aws-containers/retail-store-sample-catalog-chart
+#   oci://public.ecr.aws/aws-containers/retail-store-sample-cart-chart
+#   oci://public.ecr.aws/aws-containers/retail-store-sample-orders-chart
+#   oci://public.ecr.aws/aws-containers/retail-store-sample-checkout-chart
+#
+# To pull charts locally:
+#   aws ecr-public get-login-password --region us-east-1 | helm registry login -u AWS --password-stdin public.ecr.aws
+#   helm pull oci://public.ecr.aws/aws-containers/retail-store-sample-ui-chart --version 1.0.0
+#
+# This umbrella chart uses the CMP plugin to render templates from the base
+# values.yaml and apply Kustomize overlays per environment. The individual
+# service charts are referenced via OCI in the values.yaml image configuration.

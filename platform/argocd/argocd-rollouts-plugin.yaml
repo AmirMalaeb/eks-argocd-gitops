@@ -1,0 +1,70 @@
+# Argo Rollouts dashboard plugin for Argo CD UI
+# Requirement 17.9: Argo Rollouts controller integrates with the Argo CD dashboard
+# so that rollout progress, canary weight, and analysis status are visible in the UI.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  # Enable Argo Rollouts extension in the Argo CD UI
+  # This adds rollout progress, canary weight, and analysis status panels
+  resource.customizations.health.argoproj.io_Rollout: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Progressing" and condition.reason == "RolloutAborted" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+          if condition.type == "Progressing" and condition.reason == "ProgressDeadlineExceeded" then
+            hs.status = "Degraded"
+            hs.message = condition.message
+            return hs
+          end
+        end
+      end
+      if obj.status.phase == "Healthy" then
+        hs.status = "Healthy"
+        hs.message = "Rollout is healthy"
+      elseif obj.status.phase == "Paused" then
+        hs.status = "Suspended"
+        hs.message = "Rollout is paused"
+      elseif obj.status.phase == "Progressing" then
+        hs.status = "Progressing"
+        hs.message = "Rollout is progressing"
+      elseif obj.status.phase == "Degraded" then
+        hs.status = "Degraded"
+        hs.message = "Rollout is degraded"
+      else
+        hs.status = "Progressing"
+        hs.message = "Waiting for rollout status"
+      end
+    end
+    return hs
+  resource.customizations.health.argoproj.io_AnalysisRun: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.phase == "Successful" then
+        hs.status = "Healthy"
+        hs.message = "AnalysisRun completed successfully"
+      elseif obj.status.phase == "Running" then
+        hs.status = "Progressing"
+        hs.message = "AnalysisRun is running"
+      elseif obj.status.phase == "Failed" then
+        hs.status = "Degraded"
+        hs.message = "AnalysisRun failed"
+      elseif obj.status.phase == "Error" then
+        hs.status = "Degraded"
+        hs.message = "AnalysisRun encountered an error"
+      elseif obj.status.phase == "Inconclusive" then
+        hs.status = "Unknown"
+        hs.message = "AnalysisRun result is inconclusive"
+      else
+        hs.status = "Progressing"
+        hs.message = "Waiting for AnalysisRun status"
+      end
+    end
+    return hs

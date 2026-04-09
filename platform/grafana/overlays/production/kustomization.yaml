@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Production environment: production-grade resource limits for Grafana
+# Requirements: 18.12
+patches:
+  - target:
+      kind: HelmChartInflationGenerator
+      name: grafana
+    patch: |
+      - op: add
+        path: /valuesInline/resources
+        value:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi

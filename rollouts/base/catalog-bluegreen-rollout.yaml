@@ -1,0 +1,98 @@
+# Blue-Green Rollout for the Retail Store Catalog service
+# Requirements: 17.6, 17.7, 17.8
+# Blue-green strategy: preview receives new version traffic, active keeps current.
+# Pre-promotion analysis runs the success-rate AnalysisTemplate against the preview.
+# autoPromotionEnabled: false — requires manual promotion or successful analysis.
+# scaleDownDelaySeconds: 30 — keeps old ReplicaSet for 30s after switch for safety.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: retail-store-catalog
+  labels:
+    app.kubernetes.io/name: retail-store-catalog
+    app.kubernetes.io/part-of: retail-store
+    app.kubernetes.io/component: catalog
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: retail-store-catalog
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: retail-store-catalog
+        app.kubernetes.io/part-of: retail-store
+        app.kubernetes.io/component: catalog
+    spec:
+      containers:
+        - name: catalog
+          image: public.ecr.aws/aws-containers/retail-store-sample-catalog:1.0.0
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 128m
+              memory: 256Mi
+            limits:
+              cpu: 256m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15
+  strategy:
+    blueGreen:
+      activeService: retail-store-catalog-active
+      previewService: retail-store-catalog-preview
+      autoPromotionEnabled: false
+      prePromotionAnalysis:
+        templates:
+          - templateName: success-rate
+      scaleDownDelaySeconds: 30
+---
+# Active Service — receives production traffic, points to the current stable ReplicaSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store-catalog-active
+  labels:
+    app.kubernetes.io/name: retail-store-catalog
+    app.kubernetes.io/component: active
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: retail-store-catalog
+---
+# Preview Service — receives preview traffic, points to the new ReplicaSet during rollout
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store-catalog-preview
+  labels:
+    app.kubernetes.io/name: retail-store-catalog
+    app.kubernetes.io/component: preview
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: retail-store-catalog

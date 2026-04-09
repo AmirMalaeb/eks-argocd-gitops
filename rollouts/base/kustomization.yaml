@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Argo Rollouts resources — Rollout definitions and AnalysisTemplates
+# Requirements: 17.2, 17.3, 17.6, 17.8
+resources:
+  - ui-canary-rollout.yaml
+  - catalog-bluegreen-rollout.yaml
+  - analysis-templates/success-rate-analysis.yaml

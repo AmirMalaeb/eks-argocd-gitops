@@ -1,0 +1,30 @@
+# Platform AppProject — grants platform engineers broad access to all
+# registered spoke clusters and namespaces for deploying infrastructure
+# components (Kyverno, ESO, Argo Rollouts, Prometheus, Grafana).
+# The platform-engineer role has full permissions, mapped to the
+# platform-engineers SSO group via Argo CD RBAC + AWS IAM/SSO.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  description: Project for platform engineers — full access to all clusters and namespaces
+  sourceRepos:
+    - '*'
+  destinations:
+    - server: '*'
+      namespace: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: platform-engineer
+      description: Full access for platform engineers
+      policies:
+        - p, proj:platform:platform-engineer, applications, *, platform/*, allow
+      groups:
+        - platform-engineers

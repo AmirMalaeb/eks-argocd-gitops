@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Dev environment: ExternalSecrets reference dev/* paths in AWS Secrets Manager.
+# Base manifests already use dev/ paths, so no patches needed.

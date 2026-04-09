@@ -1,0 +1,46 @@
+# Retail Store Production AppProject — scopes production deployments to the
+# production spoke cluster with sync windows that restrict deployments to
+# business hours (Mon-Fri 9AM-5PM) and deny during weekends and after-hours.
+# Uses the same app-developer role as the dev/staging project.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: retail-store-production
+  namespace: argocd
+spec:
+  description: Project for Retail Store production deployments with sync window restrictions
+  sourceRepos:
+    - 'https://github.com/AmirMalaeb/eks-argocd-gitops.git'
+  destinations:
+    - server: 'https://B07212546FF6EDD396758CE0F22FB920.gr7.us-west-2.eks.amazonaws.com'
+      namespace: 'retail-store-*'
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: app-developer
+      description: Read and sync access for application developers (production)
+      policies:
+        - p, proj:retail-store-production:app-developer, applications, get, retail-store-production/*, allow
+        - p, proj:retail-store-production:app-developer, applications, sync, retail-store-production/*, allow
+      groups:
+        - retail-store-developers
+  # Sync windows restrict production deployments to business hours only.
+  # Dev and staging AppProjects have no sync windows for unrestricted deployment.
+  syncWindows:
+    - kind: allow
+      schedule: '0 9 * * 1-5'      # Mon-Fri 9:00 AM
+      duration: 8h                   # Until 5:00 PM
+      applications:
+        - '*'
+    - kind: deny
+      schedule: '0 0 * * 0,6'      # Weekends (Saturday and Sunday midnight)
+      duration: 48h
+      applications:
+        - '*'
+    - kind: deny
+      schedule: '0 17 * * 1-5'     # After hours Mon-Fri (5:00 PM)
+      duration: 16h
+      applications:
+        - '*'

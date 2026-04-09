@@ -1,0 +1,36 @@
+# Production environment: 3 replicas per service (high availability)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-ui
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-catalog
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-cart
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-orders
+spec:
+  replicas: 3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-checkout
+spec:
+  replicas: 3

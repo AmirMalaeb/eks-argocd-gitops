@@ -1,0 +1,50 @@
+# Platform Components ApplicationSet — deploys Kyverno, External Secrets Operator,
+# Argo Rollouts, Prometheus, and Grafana to every registered spoke cluster.
+# Uses a matrix of Git generator (discovers platform/* directories) and
+# Cluster generator (all registered spoke clusters).
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-components
+  namespace: argocd
+spec:
+  generators:
+    - matrix:
+        generators:
+          - git:
+              repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
+              revision: HEAD
+              directories:
+                - path: platform/*
+                # Exclude the argocd directory — it runs on the management cluster only
+                - path: platform/argocd
+                  exclude: true
+          - clusters:
+              selector:
+                matchLabels:
+                  argocd.argoproj.io/secret-type: cluster
+  template:
+    metadata:
+      name: '{{path.basename}}-{{name}}'
+    spec:
+      project: platform
+      source:
+        repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: '{{server}}'
+        namespace: '{{path.basename}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

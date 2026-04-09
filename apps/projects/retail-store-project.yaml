@@ -1,0 +1,30 @@
+# Retail Store AppProject — scopes application developers to their own
+# repositories and namespaces on dev/staging spoke clusters.
+# The app-developer role grants get and sync permissions, mapped to the
+# retail-store-developers SSO group via Argo CD RBAC + AWS IAM/SSO.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: retail-store
+  namespace: argocd
+spec:
+  description: Project for Retail Store application developers (dev and staging environments)
+  sourceRepos:
+    - 'https://github.com/AmirMalaeb/eks-argocd-gitops.git'
+  destinations:
+    - server: 'https://128F5289F6980F114776D70815536F47.gr7.us-west-2.eks.amazonaws.com'
+      namespace: 'retail-store-*'
+    - server: 'https://5973E47209A1BA74255CAE54C500CF4E.sk1.us-west-2.eks.amazonaws.com'
+      namespace: 'retail-store-*'
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  roles:
+    - name: app-developer
+      description: Read and sync access for application developers
+      policies:
+        - p, proj:retail-store:app-developer, applications, get, retail-store/*, allow
+        - p, proj:retail-store:app-developer, applications, sync, retail-store/*, allow
+      groups:
+        - retail-store-developers

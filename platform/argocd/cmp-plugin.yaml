@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmp-plugin
+data:
+  plugin.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: helm-kustomize
+    spec:
+      generate:
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            helm template $ARGOCD_APP_NAME charts/retail-store/ \
+              -f charts/retail-store/values.yaml \
+              --include-crds > /tmp/helm-output.yaml
+            cp /tmp/helm-output.yaml overlays/$ARGOCD_ENV/base-resources.yaml
+            kustomize build overlays/$ARGOCD_ENV
+      discover:
+        find:
+          glob: "overlays/*/kustomization.yaml"

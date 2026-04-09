@@ -1,0 +1,48 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-approved-registries
+  annotations:
+    policies.kyverno.io/title: Require Approved Container Registries
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Reject pods with container images not sourced from approved registries.
+      Approved registries include public ECR for AWS containers and Kyverno,
+      and Docker Hub library images for base dependencies.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-image-registry
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kyverno
+                - kube-system
+                - monitoring
+      validate:
+        message: >-
+          Image '{{request.object.spec.containers[].image}}' is not from an approved registry.
+          Allowed registries: public.ecr.aws/aws-containers/*, public.ecr.aws/kyverno/*,
+          docker.io/library/*.
+        foreach:
+          - list: "request.object.spec.[initContainers, containers][]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{element.image}}"
+                    operator: NotEquals
+                    value: "public.ecr.aws/aws-containers/*"
+                  - key: "{{element.image}}"
+                    operator: NotEquals
+                    value: "public.ecr.aws/kyverno/*"
+                  - key: "{{element.image}}"
+                    operator: NotEquals
+                    value: "docker.io/library/*"

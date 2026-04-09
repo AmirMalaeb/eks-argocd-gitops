@@ -1,0 +1,65 @@
+# Argo CD ConfigMap patch — OIDC provider for AWS IAM/SSO authentication
+# Configures the Argo CD server to authenticate users via AWS IAM Identity Center (SSO).
+# Requirements: 8.5, 15.6
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  # The external URL users hit (must match the Ingress host)
+  url: https://argocd.example.com
+
+  # OIDC configuration for AWS IAM Identity Center (SSO)
+  oidc.config: |
+    name: AWS SSO
+    issuer: https://cognito-idp.<region>.amazonaws.com/<user-pool-id>
+    clientID: <oidc-client-id>
+    clientSecret: $oidc.aws-sso.clientSecret
+    requestedScopes:
+      - openid
+      - email
+      - profile
+      - groups
+    requestedIDTokenClaims:
+      groups:
+        essential: true
+
+---
+# Argo CD RBAC ConfigMap — map SSO groups to Argo CD roles
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  # Default policy for authenticated users (read-only)
+  policy.default: role:readonly
+
+  policy.csv: |
+    # Platform engineers — full admin access
+    g, platform-engineers, role:admin
+
+    # Retail store developers — scoped to their AppProject
+    p, role:retail-store-developer, applications, get, retail-store/*, allow
+    p, role:retail-store-developer, applications, sync, retail-store/*, allow
+    p, role:retail-store-developer, applications, action/*, retail-store/*, allow
+    p, role:retail-store-developer, logs, get, retail-store/*, allow
+    g, retail-store-developers, role:retail-store-developer
+
+  # Map the OIDC groups claim to Argo CD groups
+  scopes: '[groups, email]'
+
+---
+# Secret for the OIDC client secret — placeholder, populate at deploy time
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+stringData:
+  # Replace with the actual OIDC client secret from AWS IAM Identity Center
+  oidc.aws-sso.clientSecret: <replace-with-oidc-client-secret>

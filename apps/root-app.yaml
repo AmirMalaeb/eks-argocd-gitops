@@ -1,0 +1,30 @@
+# Root App-of-Apps — bootstraps all child Applications, ApplicationSets, and AppProjects.
+# Bootstrap order:
+#   1. Root App-of-Apps syncs and creates: AppProjects, ApplicationSets, platform component Applications
+#   2. ApplicationSets generate per-cluster/per-environment Applications
+#   3. Platform components deploy to spoke clusters
+#   4. Application workloads deploy after platform components
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
+    targetRevision: HEAD
+    path: apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

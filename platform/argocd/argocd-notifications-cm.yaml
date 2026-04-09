@@ -1,0 +1,166 @@
+# Argo CD Notifications ConfigMap — Slack service, triggers, and message templates
+# Requirements: 9.1, 9.2, 9.3, 9.4, 9.5
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # ---------------------------------------------------------------------------
+  # Slack service configuration
+  # The webhook URL is read from the argocd-notifications-secret at runtime.
+  # ---------------------------------------------------------------------------
+  service.slack: |
+    token: $slack-token
+    icon: ":argocd:"
+    signingSecret: ""
+    deliveryPolicy: Post
+    apiURL: ""
+
+  # ---------------------------------------------------------------------------
+  # Triggers — fire on sync success, sync failure, and health degraded
+  # ---------------------------------------------------------------------------
+  trigger.on-sync-succeeded: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      send: [app-sync-succeeded]
+  trigger.on-sync-failed: |
+    - when: app.status.operationState.phase in ['Error', 'Failed']
+      send: [app-sync-failed]
+  trigger.on-health-degraded: |
+    - when: app.status.health.status == 'Degraded'
+      send: [app-health-degraded]
+
+  # ---------------------------------------------------------------------------
+  # Rollout triggers — fire on rollout promotion steps, abort, and analysis failure
+  # Requirements: 17.10, 17.11, 17.12
+  # ---------------------------------------------------------------------------
+  trigger.on-rollout-step-completed: |
+    - when: app.status.operationState.phase in ['Succeeded']
+      oncePer: app.status.sync.revision
+      send: [rollout-step-completed]
+  trigger.on-rollout-aborted: |
+    - when: app.status.health.status == 'Degraded'
+      oncePer: app.status.sync.revision
+      send: [rollout-aborted]
+  trigger.on-rollout-analysis-failed: |
+    - when: app.status.health.status == 'Degraded'
+      oncePer: app.status.sync.revision
+      send: [rollout-analysis-failed]
+
+  # ---------------------------------------------------------------------------
+  # Default trigger subscriptions — all apps get these triggers
+  # Individual apps can override via annotations:
+  #   notifications.argoproj.io/subscribe.on-sync-succeeded.slack: <channel>
+  # ---------------------------------------------------------------------------
+  defaultTriggers: |
+    - on-sync-succeeded
+    - on-sync-failed
+    - on-health-degraded
+    - on-rollout-step-completed
+    - on-rollout-aborted
+    - on-rollout-analysis-failed
+
+  # ---------------------------------------------------------------------------
+  # Message templates
+  # Each template includes: application name, target cluster, sync status,
+  # and Git commit SHA (Requirement 9.3).
+  # ---------------------------------------------------------------------------
+  template.app-sync-succeeded: |
+    slack:
+      attachments: |
+        [{
+          "color": "#18be52",
+          "title": ":white_check_mark: {{.app.metadata.name}} synced successfully",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Cluster", "value": "{{.app.spec.destination.server}}", "short": true},
+            {"title": "Sync Status", "value": "{{.app.status.sync.status}}", "short": true},
+            {"title": "Commit SHA", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Project", "value": "{{.app.spec.project}}", "short": true},
+            {"title": "Environment", "value": "{{.app.spec.destination.namespace}}", "short": true}
+          ]
+        }]
+  template.app-sync-failed: |
+    slack:
+      attachments: |
+        [{
+          "color": "#E96D76",
+          "title": ":x: {{.app.metadata.name}} sync failed",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Cluster", "value": "{{.app.spec.destination.server}}", "short": true},
+            {"title": "Sync Status", "value": "{{.app.status.operationState.phase}}", "short": true},
+            {"title": "Commit SHA", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Message", "value": "{{.app.status.operationState.message}}", "short": false}
+          ]
+        }]
+  template.app-health-degraded: |
+    slack:
+      attachments: |
+        [{
+          "color": "#f4c030",
+          "title": ":warning: {{.app.metadata.name}} health degraded",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Cluster", "value": "{{.app.spec.destination.server}}", "short": true},
+            {"title": "Health Status", "value": "{{.app.status.health.status}}", "short": true},
+            {"title": "Commit SHA", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Sync Status", "value": "{{.app.status.sync.status}}", "short": true}
+          ]
+        }]
+
+  # ---------------------------------------------------------------------------
+  # Rollout message templates
+  # Requirements: 17.10, 17.11, 17.12
+  # ---------------------------------------------------------------------------
+  template.rollout-step-completed: |
+    slack:
+      attachments: |
+        [{
+          "color": "#18be52",
+          "title": ":rocket: {{.app.metadata.name}} rollout step completed",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Cluster", "value": "{{.app.spec.destination.server}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Environment", "value": "{{.app.spec.destination.namespace}}", "short": true}
+          ]
+        }]
+  template.rollout-aborted: |
+    slack:
+      attachments: |
+        [{
+          "color": "#E96D76",
+          "title": ":octagonal_sign: {{.app.metadata.name}} rollout aborted",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Cluster", "value": "{{.app.spec.destination.server}}", "short": true},
+            {"title": "Health Status", "value": "{{.app.status.health.status}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Reason", "value": "Rollout aborted due to failed analysis — check AnalysisRun for details", "short": false}
+          ]
+        }]
+  template.rollout-analysis-failed: |
+    slack:
+      attachments: |
+        [{
+          "color": "#E96D76",
+          "title": ":chart_with_downwards_trend: {{.app.metadata.name}} rollout analysis failed",
+          "fields": [
+            {"title": "Application", "value": "{{.app.metadata.name}}", "short": true},
+            {"title": "Cluster", "value": "{{.app.spec.destination.server}}", "short": true},
+            {"title": "Health Status", "value": "{{.app.status.health.status}}", "short": true},
+            {"title": "Revision", "value": "{{.app.status.sync.revision | trunc 7}}", "short": true},
+            {"title": "Details", "value": "Analysis metrics exceeded threshold — review AnalysisRun metrics and Prometheus queries for measured values", "short": false}
+          ]
+        }]
+
+  # ---------------------------------------------------------------------------
+  # Retry configuration — exponential backoff for webhook delivery failures
+  # Requirement 9.5: retry with exponential backoff when Slack is unreachable
+  # ---------------------------------------------------------------------------
+  config: |
+    retryCount: 5
+    retryDelay: 5s
+    retryBackoffFactor: 2
+    retryMaxDelay: 3m

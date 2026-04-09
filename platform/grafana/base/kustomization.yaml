@@ -1,0 +1,59 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Grafana Helm chart — deployed to each spoke cluster via platform-components ApplicationSet.
+# Provides dashboards for Retail Store health, Argo CD sync status, Argo Rollouts progress, and Kyverno violations.
+# Requirements: 18.1, 18.9, 18.11
+helmCharts:
+  - name: grafana
+    repo: https://grafana.github.io/helm-charts
+    version: "8.12.0"
+    releaseName: grafana
+    namespace: monitoring
+    includeCRDs: true
+    valuesInline:
+      # Basic auth for POC — production should use AWS SSO/IAM OIDC integration
+      adminUser: admin
+      adminPassword: admin
+      grafana.ini:
+        auth:
+          disable_login_form: false
+        auth.anonymous:
+          enabled: false
+        # NOTE: For production, configure OIDC auth with AWS SSO:
+        # auth.generic_oauth:
+        #   enabled: true
+        #   name: AWS SSO
+        #   client_id: <oidc-client-id>
+        #   client_secret: <oidc-client-secret>
+        #   auth_url: https://<issuer>/authorize
+        #   token_url: https://<issuer>/token
+        #   api_url: https://<issuer>/userinfo
+        #   scopes: openid profile email
+      datasources:
+        datasources.yaml:
+          apiVersion: 1
+          datasources:
+            - name: Prometheus
+              type: prometheus
+              url: http://kube-prometheus-stack-prometheus.monitoring:9090
+              access: proxy
+              isDefault: true
+              editable: false
+      dashboardProviders:
+        dashboardproviders.yaml:
+          apiVersion: 1
+          providers:
+            - name: default
+              orgId: 1
+              folder: ""
+              type: file
+              disableDeletion: true
+              editable: false
+              options:
+                path: /var/lib/grafana/dashboards/default
+      dashboardsConfigMaps:
+        default: grafana-dashboards
+
+resources:
+  - dashboards-configmap.yaml

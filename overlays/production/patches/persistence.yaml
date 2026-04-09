@@ -1,0 +1,26 @@
+# Production environment: managed persistence backends (AWS services).
+# MariaDB via Amazon RDS, DynamoDB native, ElastiCache Redis.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: retail-store-persistence-config
+data:
+  # Catalog — Amazon RDS MariaDB
+  CATALOG_DB_HOST: "${CATALOG_RDS_ENDPOINT}"
+  CATALOG_DB_PORT: "3306"
+  CATALOG_DB_NAME: "catalog"
+
+  # Orders — Amazon RDS MariaDB
+  ORDERS_DB_HOST: "${ORDERS_RDS_ENDPOINT}"
+  ORDERS_DB_PORT: "3306"
+  ORDERS_DB_NAME: "orders"
+
+  # Cart — AWS DynamoDB (native, no endpoint override)
+  CARTS_DYNAMODB_TABLE: "retail-store-cart"
+  AWS_REGION: "us-west-2"
+
+  # Checkout — Amazon ElastiCache Redis
+  CHECKOUT_REDIS_HOST: "${ELASTICACHE_REDIS_ENDPOINT}"
+  CHECKOUT_REDIS_PORT: "6379"
+  CHECKOUT_REDIS_TLS: "true"

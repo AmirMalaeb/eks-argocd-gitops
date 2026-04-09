@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Staging environment: patch ExternalSecrets to reference staging/* paths in AWS Secrets Manager.
+patches:
+  - target:
+      kind: ExternalSecret
+      name: retail-store-db-credentials
+    patch: |
+      - op: replace
+        path: /metadata/namespace
+        value: retail-store-staging
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: staging/retail-store/mariadb
+      - op: replace
+        path: /spec/data/1/remoteRef/key
+        value: staging/retail-store/redis
+
+  - target:
+      kind: ExternalSecret
+      name: retail-store-slack-webhook
+    patch: |
+      - op: replace
+        path: /metadata/namespace
+        value: retail-store-staging
+      - op: replace
+        path: /spec/data/0/remoteRef/key
+        value: staging/retail-store/slack

@@ -1,0 +1,37 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-probes
+  annotations:
+    policies.kyverno.io/title: Require Readiness and Liveness Probes
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Report deployments that do not define both readinessProbe and livenessProbe
+      for every container. Probes are essential for reliable health checking and
+      traffic management.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: check-probes
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+      validate:
+        message: >-
+          Deployment '{{request.object.metadata.name}}' is missing readinessProbe
+          or livenessProbe on one or more containers.
+        foreach:
+          - list: "request.object.spec.template.spec.[initContainers, containers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.readinessProbe || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.livenessProbe || '' }}"
+                    operator: Equals
+                    value: ""

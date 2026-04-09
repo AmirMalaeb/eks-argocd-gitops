@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# External Secrets Operator Helm chart is deployed via the platform-components ApplicationSet.
+# This kustomization layers ClusterSecretStore and ExternalSecret resources on top of the Helm chart installation.
+helmCharts:
+  - name: external-secrets
+    repo: https://charts.external-secrets.io
+    version: "0.12.1"
+    releaseName: external-secrets
+    namespace: external-secrets
+    includeCRDs: true
+
+resources:
+  - cluster-secret-store.yaml
+  - external-secret-db.yaml
+  - external-secret-slack.yaml

@@ -1,0 +1,136 @@
+# Canary Rollout for the Retail Store UI service
+# Requirements: 17.2, 17.4, 17.5, 17.8
+# Progressive traffic shifting: 10% → 30% → 60% → 100%
+# Each step runs an AnalysisRun using the success-rate AnalysisTemplate.
+# If analysis fails (error rate exceeds threshold), the rollout aborts and
+# traffic is automatically rolled back to the stable version.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: retail-store-ui
+  labels:
+    app.kubernetes.io/name: retail-store-ui
+    app.kubernetes.io/part-of: retail-store
+    app.kubernetes.io/component: ui
+spec:
+  replicas: 3
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: retail-store-ui
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: retail-store-ui
+        app.kubernetes.io/part-of: retail-store
+        app.kubernetes.io/component: ui
+    spec:
+      containers:
+        - name: ui
+          image: public.ecr.aws/aws-containers/retail-store-sample-ui:1.0.0
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 128m
+              memory: 256Mi
+            limits:
+              cpu: 256m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+  strategy:
+    canary:
+      steps:
+        - setWeight: 10
+        - analysis:
+            templates:
+              - templateName: success-rate
+        - setWeight: 30
+        - analysis:
+            templates:
+              - templateName: success-rate
+        - setWeight: 60
+        - analysis:
+            templates:
+              - templateName: success-rate
+        - setWeight: 100
+      canaryService: retail-store-ui-canary
+      stableService: retail-store-ui-stable
+      trafficRouting:
+        alb:
+          ingress: retail-store-ui
+          servicePort: 80
+---
+# Stable Service — receives production traffic during rollout
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store-ui-stable
+  labels:
+    app.kubernetes.io/name: retail-store-ui
+    app.kubernetes.io/component: stable
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: retail-store-ui
+---
+# Canary Service — receives canary traffic during rollout
+apiVersion: v1
+kind: Service
+metadata:
+  name: retail-store-ui-canary
+  labels:
+    app.kubernetes.io/name: retail-store-ui
+    app.kubernetes.io/component: canary
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: retail-store-ui
+---
+# ALB Ingress for traffic routing between stable and canary
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: retail-store-ui
+  labels:
+    app.kubernetes.io/name: retail-store-ui
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+spec:
+  rules:
+    - host: ui.retail-store.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: retail-store-ui-stable
+                port:
+                  number: 80

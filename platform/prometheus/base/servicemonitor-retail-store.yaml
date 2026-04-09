@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: retail-store-app
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: retail-store
+    prometheus: kube-prometheus-stack
+spec:
+  # Scrape all Retail Store services across environment namespaces
+  namespaceSelector:
+    matchNames:
+      - retail-store-dev
+      - retail-store-staging
+      - retail-store-production
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: retail-store
+  endpoints:
+    - port: http-metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

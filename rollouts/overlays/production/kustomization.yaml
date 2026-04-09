@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Production environment: full replicas, production resource limits
+patches:
+  - target:
+      kind: Rollout
+      name: retail-store-ui
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Rollout
+      name: retail-store-catalog
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Ingress
+      name: retail-store-ui
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: ui.retail-store.example.com

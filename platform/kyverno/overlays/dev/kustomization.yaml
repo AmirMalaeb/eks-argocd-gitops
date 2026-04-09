@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Dev environment: relax some enforce policies to audit mode for developer flexibility.
+patches:
+  # Relax approved registries to audit — allows devs to test with non-approved images
+  - target:
+      kind: ClusterPolicy
+      name: require-approved-registries
+    patch: |
+      - op: replace
+        path: /spec/validationFailureAction
+        value: Audit
+
+  # Relax resource limits to audit — allows rapid iteration without strict limits
+  - target:
+      kind: ClusterPolicy
+      name: require-resource-limits
+    patch: |
+      - op: replace
+        path: /spec/validationFailureAction
+        value: Audit

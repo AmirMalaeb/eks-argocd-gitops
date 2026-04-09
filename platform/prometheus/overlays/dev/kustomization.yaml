@@ -1,0 +1,28 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Dev environment: short retention (24h), relaxed scrape interval (30s)
+# Requirements: 18.12
+patches:
+  - target:
+      kind: HelmChartInflationGenerator
+      name: kube-prometheus-stack
+    patch: |
+      - op: replace
+        path: /valuesInline/prometheus/prometheusSpec/retention
+        value: 24h
+      - op: replace
+        path: /valuesInline/prometheus/prometheusSpec/scrapeInterval
+        value: 30s
+      - op: add
+        path: /valuesInline/prometheus/prometheusSpec/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi

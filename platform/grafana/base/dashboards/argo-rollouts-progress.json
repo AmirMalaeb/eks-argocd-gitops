@@ -1,0 +1,186 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Argo Rollouts progress — canary weight, analysis results, and rollout phase timeline",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Current Canary Weight",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 50 },
+              { "color": "green", "value": 100 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rollout_info_replicas_desired{namespace=~\"retail-store-.*\"} > 0",
+          "legendFormat": "{{ rollout }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Rollout Phase",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "Progressing", "color": "blue" } } },
+            { "type": "value", "options": { "2": { "text": "Paused", "color": "yellow" } } },
+            { "type": "value", "options": { "3": { "text": "Healthy", "color": "green" } } },
+            { "type": "value", "options": { "4": { "text": "Degraded", "color": "red" } } }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "rollout_phase{namespace=~\"retail-store-.*\"}",
+          "legendFormat": "{{ rollout }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Active Rollouts",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "rollout_info{namespace=~\"retail-store-.*\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": {
+              "rollout": true,
+              "namespace": true,
+              "strategy": true,
+              "phase": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "title": "Canary Weight Over Time",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter",
+            "fillOpacity": 20
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rollout_info_replicas_canary{namespace=~\"retail-store-.*\"} / rollout_info_replicas_desired{namespace=~\"retail-store-.*\"} * 100",
+          "legendFormat": "{{ rollout }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Analysis Run Results",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 50
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(analysis_run_info{namespace=~\"retail-store-.*\",phase=\"Successful\"}) by (name)",
+          "legendFormat": "{{ name }} (success)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(analysis_run_info{namespace=~\"retail-store-.*\",phase=\"Failed\"}) by (name)",
+          "legendFormat": "{{ name }} (failed)",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "title": "Rollout Phase Timeline",
+      "type": "state-timeline",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "1": { "text": "Progressing", "color": "blue" } } },
+            { "type": "value", "options": { "2": { "text": "Paused", "color": "yellow" } } },
+            { "type": "value", "options": { "3": { "text": "Healthy", "color": "green" } } },
+            { "type": "value", "options": { "4": { "text": "Degraded", "color": "red" } } },
+            { "type": "value", "options": { "5": { "text": "Aborted", "color": "orange" } } }
+          ]
+        }
+      },
+      "targets": [
+        {
+          "expr": "rollout_phase{namespace=~\"retail-store-.*\"}",
+          "legendFormat": "{{ rollout }}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["argo-rollouts", "progressive-delivery"],
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(rollout_info, namespace)",
+        "regex": "retail-store-.*",
+        "refresh": 2,
+        "current": { "text": "All", "value": "$__all" },
+        "includeAll": true
+      }
+    ]
+  },
+  "time": { "from": "now-3h", "to": "now" },
+  "title": "Argo Rollouts Progress",
+  "uid": "argo-rollouts-progress"
+}

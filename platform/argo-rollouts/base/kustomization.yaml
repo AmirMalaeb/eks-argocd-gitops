@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Argo Rollouts Helm chart — deployed to each spoke cluster via platform-components ApplicationSet.
+# Provides progressive delivery capabilities (canary, blue-green) with automated analysis.
+# Requirements: 17.1, 17.9
+helmCharts:
+  - name: argo-rollouts
+    repo: https://argoproj.github.io/argo-helm
+    version: "2.40.5"
+    releaseName: argo-rollouts
+    namespace: argo-rollouts
+    includeCRDs: true
+    valuesInline:
+      dashboard:
+        enabled: true
+      controller:
+        metrics:
+          enabled: true
+          serviceMonitor:
+            enabled: true

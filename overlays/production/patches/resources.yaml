@@ -1,0 +1,86 @@
+# Production environment: production resource limits (cpu 256m-512m, memory 512Mi-1Gi)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-ui
+spec:
+  template:
+    spec:
+      containers:
+        - name: ui
+          resources:
+            requests:
+              cpu: 512m
+              memory: 1Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-catalog
+spec:
+  template:
+    spec:
+      containers:
+        - name: catalog
+          resources:
+            requests:
+              cpu: 256m
+              memory: 512Mi
+            limits:
+              cpu: 512m
+              memory: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-cart
+spec:
+  template:
+    spec:
+      containers:
+        - name: cart
+          resources:
+            requests:
+              cpu: 512m
+              memory: 1Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-orders
+spec:
+  template:
+    spec:
+      containers:
+        - name: orders
+          resources:
+            requests:
+              cpu: 512m
+              memory: 1Gi
+            limits:
+              cpu: 1
+              memory: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retail-store-checkout
+spec:
+  template:
+    spec:
+      containers:
+        - name: checkout
+          resources:
+            requests:
+              cpu: 256m
+              memory: 512Mi
+            limits:
+              cpu: 512m
+              memory: 1Gi

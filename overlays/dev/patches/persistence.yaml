@@ -1,0 +1,26 @@
+# Dev environment: in-cluster MariaDB/Redis, mock DynamoDB (localstack)
+# These patches override the base persistence config for lightweight local dev.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: retail-store-persistence-config
+data:
+  # Catalog — in-cluster MariaDB
+  CATALOG_DB_HOST: "catalog-mariadb.retail-store-dev.svc.cluster.local"
+  CATALOG_DB_PORT: "3306"
+  CATALOG_DB_NAME: "catalog"
+
+  # Orders — in-cluster MariaDB
+  ORDERS_DB_HOST: "orders-mariadb.retail-store-dev.svc.cluster.local"
+  ORDERS_DB_PORT: "3306"
+  ORDERS_DB_NAME: "orders"
+
+  # Cart — mock DynamoDB via localstack
+  CARTS_DYNAMODB_ENDPOINT: "http://localstack.retail-store-dev.svc.cluster.local:4566"
+  CARTS_DYNAMODB_TABLE: "retail-store-cart"
+  AWS_REGION: "us-west-2"
+
+  # Checkout — in-cluster Redis
+  CHECKOUT_REDIS_HOST: "checkout-redis.retail-store-dev.svc.cluster.local"
+  CHECKOUT_REDIS_PORT: "6379"

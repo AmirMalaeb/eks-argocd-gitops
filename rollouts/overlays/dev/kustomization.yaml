@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+# Dev environment: reduced replicas for cost savings
+patches:
+  - target:
+      kind: Rollout
+      name: retail-store-ui
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Rollout
+      name: retail-store-catalog
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Ingress
+      name: retail-store-ui
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: ui.dev.retail-store.example.com

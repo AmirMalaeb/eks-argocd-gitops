@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  retail-store-health.json: |-
+    {{- .Files.Get "dashboards/retail-store-health.json" | nindent 4 }}
+  argocd-sync-status.json: |-
+    {{- .Files.Get "dashboards/argocd-sync-status.json" | nindent 4 }}
+  argo-rollouts-progress.json: |-
+    {{- .Files.Get "dashboards/argo-rollouts-progress.json" | nindent 4 }}
+  kyverno-violations.json: |-
+    {{- .Files.Get "dashboards/kyverno-violations.json" | nindent 4 }}

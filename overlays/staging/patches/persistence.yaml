@@ -1,0 +1,26 @@
+# Staging environment: in-cluster persistence with production-like config.
+# Uses the same in-cluster databases as dev but with production-like sizing.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: retail-store-persistence-config
+data:
+  # Catalog — in-cluster MariaDB (production-like config)
+  CATALOG_DB_HOST: "catalog-mariadb.retail-store-staging.svc.cluster.local"
+  CATALOG_DB_PORT: "3306"
+  CATALOG_DB_NAME: "catalog"
+
+  # Orders — in-cluster MariaDB (production-like config)
+  ORDERS_DB_HOST: "orders-mariadb.retail-store-staging.svc.cluster.local"
+  ORDERS_DB_PORT: "3306"
+  ORDERS_DB_NAME: "orders"
+
+  # Cart — mock DynamoDB via localstack (production-like table config)
+  CARTS_DYNAMODB_ENDPOINT: "http://localstack.retail-store-staging.svc.cluster.local:4566"
+  CARTS_DYNAMODB_TABLE: "retail-store-cart"
+  AWS_REGION: "us-west-2"
+
+  # Checkout — in-cluster Redis (production-like config)
+  CHECKOUT_REDIS_HOST: "checkout-redis.retail-store-staging.svc.cluster.local"
+  CHECKOUT_REDIS_PORT: "6379"

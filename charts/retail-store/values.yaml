@@ -1,0 +1,273 @@
+# Base values for the Retail Store Sample Application.
+# These defaults are shared across all environments.
+# Environment-specific overrides live in overlays/<env>/patches/.
+
+retail-store-sample-app:
+  enabled: true
+
+# ---------------------------------------------------------------------------
+# UI Service (Java)
+# ---------------------------------------------------------------------------
+ui:
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-ui
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 128m
+      memory: 256Mi
+    limits:
+      cpu: 256m
+      memory: 512Mi
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  serviceMonitor:
+    enabled: true
+    path: /metrics
+    interval: 30s
+  ingress:
+    enabled: false
+    className: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+    hosts:
+      - host: ""
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+
+# ---------------------------------------------------------------------------
+# Catalog Service (Go) — persistence: MariaDB
+# ---------------------------------------------------------------------------
+catalog:
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-catalog
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 128m
+      memory: 128Mi
+    limits:
+      cpu: 256m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  serviceMonitor:
+    enabled: true
+    path: /metrics
+    interval: 30s
+  persistence:
+    type: mariadb
+    mariadb:
+      enabled: true
+      image:
+        repository: mariadb
+        tag: "10.11"
+      port: 3306
+      database: catalog
+      existingSecret: catalog-db-credentials
+      resources:
+        requests:
+          cpu: 128m
+          memory: 256Mi
+        limits:
+          cpu: 256m
+          memory: 512Mi
+
+# ---------------------------------------------------------------------------
+# Cart Service (Java) — persistence: DynamoDB
+# ---------------------------------------------------------------------------
+cart:
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-cart
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 128m
+      memory: 256Mi
+    limits:
+      cpu: 256m
+      memory: 512Mi
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  serviceMonitor:
+    enabled: true
+    path: /metrics
+    interval: 30s
+  persistence:
+    type: dynamodb
+    dynamodb:
+      tableName: retail-store-cart
+      region: us-west-2
+
+# ---------------------------------------------------------------------------
+# Orders Service (Java) — persistence: MariaDB (shared)
+# ---------------------------------------------------------------------------
+orders:
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-orders
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 128m
+      memory: 256Mi
+    limits:
+      cpu: 256m
+      memory: 512Mi
+  livenessProbe:
+    httpGet:
+      path: /actuator/health/liveness
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /actuator/health/readiness
+      port: 8080
+    initialDelaySeconds: 15
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  serviceMonitor:
+    enabled: true
+    path: /metrics
+    interval: 30s
+  persistence:
+    type: mariadb
+    mariadb:
+      enabled: true
+      image:
+        repository: mariadb
+        tag: "10.11"
+      port: 3306
+      database: orders
+      existingSecret: orders-db-credentials
+      resources:
+        requests:
+          cpu: 128m
+          memory: 256Mi
+        limits:
+          cpu: 256m
+          memory: 512Mi
+
+# ---------------------------------------------------------------------------
+# Checkout Service (Node.js) — persistence: Redis
+# ---------------------------------------------------------------------------
+checkout:
+  image:
+    repository: public.ecr.aws/aws-containers/retail-store-sample-checkout
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 128m
+      memory: 128Mi
+    limits:
+      cpu: 256m
+      memory: 256Mi
+  livenessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /health
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+  serviceMonitor:
+    enabled: true
+    path: /metrics
+    interval: 30s
+  persistence:
+    type: redis
+    redis:
+      enabled: true
+      image:
+        repository: redis
+        tag: "7-alpine"
+      port: 6379
+      existingSecret: checkout-redis-credentials
+      resources:
+        requests:
+          cpu: 64m
+          memory: 128Mi
+        limits:
+          cpu: 128m
+          memory: 256Mi

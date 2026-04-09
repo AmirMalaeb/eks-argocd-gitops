@@ -1,0 +1,44 @@
+# AnalysisTemplate for progressive delivery metrics validation
+# Requirements: 17.3, 17.4, 17.5
+#
+# Metrics:
+#   success-rate — HTTP 2xx rate must be >= 0.95 (95%)
+#   error-rate   — HTTP 5xx rate must be <= 0.05 (5%)
+#
+# Each metric is evaluated 3 times at 60-second intervals.
+# Both metrics must pass for the analysis to succeed.
+# If either metric fails, the Rollout aborts and rolls back to stable.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: success-rate
+  labels:
+    app.kubernetes.io/part-of: retail-store
+    app.kubernetes.io/component: analysis
+spec:
+  metrics:
+    - name: success-rate
+      interval: 60s
+      count: 3
+      successCondition: result[0] >= 0.95
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring:9090
+          query: |
+            sum(rate(http_requests_total{service="{{args.service-name}}",status=~"2.."}[5m]))
+            /
+            sum(rate(http_requests_total{service="{{args.service-name}}"}[5m]))
+    - name: error-rate
+      interval: 60s
+      count: 3
+      successCondition: result[0] <= 0.05
+      provider:
+        prometheus:
+          address: http://prometheus-server.monitoring:9090
+          query: |
+            sum(rate(http_requests_total{service="{{args.service-name}}",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{service="{{args.service-name}}"}[5m]))
+  args:
+    - name: service-name
+      value: retail-store-ui
