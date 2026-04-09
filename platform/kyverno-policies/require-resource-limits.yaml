@@ -1,0 +1,42 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Requests and Limits
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Reject pods that do not specify resource requests and limits for every container.
+      This ensures predictable scheduling and prevents resource contention.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: >-
+          All containers must have resource requests and limits defined
+          (cpu and memory for both requests and limits).
+        foreach:
+          - list: "request.object.spec.[initContainers, containers][]"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.resources.requests.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.requests.memory || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.cpu || '' }}"
+                    operator: Equals
+                    value: ""
+                  - key: "{{ element.resources.limits.memory || '' }}"
+                    operator: Equals
+                    value: ""

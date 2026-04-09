@@ -1,0 +1,43 @@
+# Kyverno Policies ApplicationSet — deploys custom ClusterPolicies to every spoke cluster.
+# The Kyverno engine is installed via Helm in platform-components.
+# These policies are plain Kubernetes manifests deployed from the Git repo.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: kyverno-policies
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - cluster: spoke-dev
+            environment: dev
+          - cluster: spoke-staging
+            environment: staging
+          - cluster: spoke-prod
+            environment: production
+  template:
+    metadata:
+      name: 'kyverno-policies-{{environment}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
+        targetRevision: HEAD
+        path: platform/kyverno-policies
+      destination:
+        name: '{{cluster}}'
+        namespace: kyverno
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
