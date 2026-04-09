@@ -1,7 +1,7 @@
 # Platform Components ApplicationSet — deploys Kyverno, External Secrets Operator,
 # Argo Rollouts, Prometheus, and Grafana to every spoke cluster.
-# Uses matrix of list generator (components) × list generator (clusters).
-# Source type: native Kustomize (CMP is not supported in managed Argo CD).
+# Uses Argo CD native Helm source type (not Kustomize helmCharts) since
+# managed Argo CD doesn't support kustomize --enable-helm.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
@@ -14,15 +14,30 @@ spec:
           - list:
               elements:
                 - component: kyverno
-                  path: platform/kyverno/base
+                  repoUrl: https://kyverno.github.io/kyverno/
+                  chart: kyverno
+                  chartVersion: "3.4.0"
+                  namespace: kyverno
                 - component: external-secrets
-                  path: platform/external-secrets/base
+                  repoUrl: https://charts.external-secrets.io
+                  chart: external-secrets
+                  chartVersion: "0.12.1"
+                  namespace: external-secrets
                 - component: argo-rollouts
-                  path: platform/argo-rollouts/base
+                  repoUrl: https://argoproj.github.io/argo-helm
+                  chart: argo-rollouts
+                  chartVersion: "2.40.5"
+                  namespace: argo-rollouts
                 - component: prometheus
-                  path: platform/prometheus/base
+                  repoUrl: https://prometheus-community.github.io/helm-charts
+                  chart: kube-prometheus-stack
+                  chartVersion: "72.6.0"
+                  namespace: monitoring
                 - component: grafana
-                  path: platform/grafana/base
+                  repoUrl: https://grafana.github.io/helm-charts
+                  chart: grafana
+                  chartVersion: "8.12.0"
+                  namespace: monitoring
           - list:
               elements:
                 - cluster: spoke-dev
@@ -37,12 +52,14 @@ spec:
     spec:
       project: default
       source:
-        repoURL: https://github.com/AmirMalaeb/eks-argocd-gitops.git
-        targetRevision: HEAD
-        path: '{{path}}'
+        repoURL: '{{repoUrl}}'
+        chart: '{{chart}}'
+        targetRevision: '{{chartVersion}}'
+        helm:
+          releaseName: '{{component}}'
       destination:
         name: '{{cluster}}'
-        namespace: '{{component}}'
+        namespace: '{{namespace}}'
       syncPolicy:
         automated:
           prune: true
