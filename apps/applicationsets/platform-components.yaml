@@ -20,10 +20,18 @@ spec:
                   namespace: kyverno
                   helmValues: |
                     cleanupJobs:
-                      clusterAdmissionReports:
-                        enabled: false
                       admissionReports:
                         enabled: false
+                        image:
+                          registry: ghcr.io
+                          repository: kyverno/kubectl
+                          tag: latest
+                      clusterAdmissionReports:
+                        enabled: false
+                        image:
+                          registry: ghcr.io
+                          repository: kyverno/kubectl
+                          tag: latest
                 - component: external-secrets
                   repoUrl: https://charts.external-secrets.io
                   chart: external-secrets
