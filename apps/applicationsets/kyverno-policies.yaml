@@ -28,12 +28,6 @@ spec:
       destination:
         name: '{{cluster}}'
         namespace: kyverno
-      ignoreDifferences:
-        - group: kyverno.io
-          kind: ClusterPolicy
-          jsonPointers:
-            - /status
-            - /spec/rules
       syncPolicy:
         automated:
           prune: true
