@@ -1,4 +1,4 @@
-# EKS Managed Argo CD — GitOps POC
+# EKS Managed Argo CD — GitOps POC - Testing Only
 
 GitOps platform using AWS Managed Argo CD on Amazon EKS in a hub-and-spoke topology. A single management cluster runs the Argo CD control plane and manages deployments to spoke clusters across dev, staging, and production environments. The [AWS Retail Store Sample Application](https://github.com/aws-containers/retail-store-sample-app) serves as the demonstration workload.
 
